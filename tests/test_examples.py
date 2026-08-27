@@ -14,6 +14,8 @@ class ExampleWorkflowTests(unittest.TestCase):
         examples = sorted((PACKAGE_ROOT / "examples").glob("*.json"))
         self.assertEqual([path.name for path in examples], [
             "batch_t2i_workflow.json",
+            "core_edit_workflow.json",
+            "core_t2i_workflow.json",
             "edit_workflow.json",
             "multi_reference_edit_workflow.json",
             "sft_edit_workflow.json",
@@ -31,6 +33,8 @@ class ExampleWorkflowTests(unittest.TestCase):
     def test_frontend_workflows_have_resolved_links(self):
         for name in (
             "batch_t2i_workflow.json",
+            "core_t2i_workflow.json",
+            "core_edit_workflow.json",
             "t2i_workflow.json",
             "t2i_8step_workflow.json",
             "edit_workflow.json",
@@ -48,6 +52,21 @@ class ExampleWorkflowTests(unittest.TestCase):
                     self.assertEqual(nodes[origin_id]["outputs"][origin_slot]["type"], link_type, link_id)
                     self.assertEqual(nodes[target_id]["inputs"][target_slot]["type"], link_type, link_id)
                     self.assertEqual(nodes[target_id]["inputs"][target_slot]["link"], link_id, link_id)
+
+    def test_core_workflows_use_native_loaders_and_nodes(self):
+        for name in ("core_t2i_workflow.json", "core_edit_workflow.json"):
+            workflow = self.load_example(name)
+            loader = next(node for node in workflow["nodes"] if node["type"] == "CheckpointLoaderSimple")
+            options = next(node for node in workflow["nodes"] if node["type"] == "SenseNovaSamplingOptions")
+            latent = next(node for node in workflow["nodes"] if node["type"] == "EmptySenseNovaLatentImage")
+            with self.subTest(name=name):
+                self.assertEqual(loader["widgets_values"], ["SenseNova-U1.5-8B-MoT-BF16-T8.safetensors"])
+                self.assertEqual(options["widgets_values"], [3])
+                self.assertEqual(latent["widgets_values"], [1024, 1024, 1])
+
+        edit = self.load_example("core_edit_workflow.json")
+        reference = next(node for node in edit["nodes"] if node["type"] == "SenseNovaReferenceImages")
+        self.assertEqual([value["name"] for value in reference["inputs"]], ["positive", "negative", "image_1"])
 
     def test_frontend_t2i_uses_official_defaults(self):
         workflow = self.load_example("t2i_workflow.json")

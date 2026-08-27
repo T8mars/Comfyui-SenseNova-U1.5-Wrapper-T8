@@ -93,6 +93,15 @@ These are normal ComfyUI canvas workflows. Download a JSON file and drag it onto
 - [SFT text-to-image](examples/sft_t2i_workflow.json)
 - [SFT image editing](examples/sft_edit_workflow.json)
 
+### Native ComfyUI core workflows
+
+These two workflows target ComfyUI builds that include native SenseNova U1.5 core support and do not depend on this repository's custom loader:
+
+- [Native core text-to-image](examples/core_t2i_workflow.json)
+- [Native core image editing](examples/core_edit_workflow.json)
+
+The core workflows use ComfyUI's built-in `CheckpointLoaderSimple`, so place the base checkpoint in `ComfyUI/models/checkpoints/`. The 8-step LoRA can use the built-in `LoraLoaderModelOnly`; keep the LoRA file in `ComfyUI/models/loras/`.
+
 Start with these settings:
 
 ```text

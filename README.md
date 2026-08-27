@@ -90,6 +90,15 @@ Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图�
 - [SFT 文生图工作流](examples/sft_t2i_workflow.json)
 - [SFT 图像编辑工作流](examples/sft_edit_workflow.json)
 
+### ComfyUI core 原生工作流
+
+下面两个工作流用于已包含 SenseNova U1.5 core 支持的 ComfyUI，不依赖本仓库的自定义 Loader：
+
+- [core 原生文生图工作流](examples/core_t2i_workflow.json)
+- [core 原生图像编辑工作流](examples/core_edit_workflow.json)
+
+core 工作流使用 ComfyUI 自带的 `CheckpointLoaderSimple`，因此底模要放到 `ComfyUI/models/checkpoints/`。8-step LoRA 可直接使用自带的 `LoraLoaderModelOnly`，LoRA 文件仍放在 `ComfyUI/models/loras/`。
+
 推荐先保持这些参数：
 
 ```text

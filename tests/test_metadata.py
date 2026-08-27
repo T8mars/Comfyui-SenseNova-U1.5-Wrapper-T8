@@ -16,7 +16,7 @@ class MetadataTests(unittest.TestCase):
     def test_registry_metadata(self):
         metadata = tomllib.loads((PACKAGE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(metadata["project"]["name"], "sensenova-u15-t8")
-        self.assertEqual(metadata["project"]["version"], "1.3.5")
+        self.assertEqual(metadata["project"]["version"], "1.3.6")
         self.assertEqual(metadata["tool"]["comfy"]["PublisherId"], "t8star")
         self.assertEqual(metadata["tool"]["comfy"]["DisplayName"], "SenseNova U1.5 (T8)")
         self.assertTrue(metadata["project"]["urls"]["Model Download"].startswith("https://huggingface.co/t8star/"))
@@ -35,6 +35,13 @@ class MetadataTests(unittest.TestCase):
         self.assertIn("migrateLegacyReferenceInputs", extension)
         self.assertIn('WEB_DIRECTORY = "./web"', (PACKAGE_ROOT / "__init__.py").read_text(encoding="utf-8"))
         self.assertGreater((PACKAGE_ROOT / "sensenova_u15" / "checkpoint_contract.json").stat().st_size, 100_000)
+
+    def test_manager_node_list_matches_v3_schema_ids(self):
+        node_list = json.loads((PACKAGE_ROOT / "node_list.json").read_text(encoding="utf-8"))
+        source = (PACKAGE_ROOT / "nodes.py").read_text(encoding="utf-8")
+        schema_ids = set(re.findall(r'node_id="([^"]+)"', source))
+        self.assertEqual(set(node_list), schema_ids)
+        self.assertTrue(all(isinstance(description, str) and description for description in node_list.values()))
 
     def test_all_examples_are_valid_json(self):
         examples = sorted((PACKAGE_ROOT / "examples").glob("*.json"))

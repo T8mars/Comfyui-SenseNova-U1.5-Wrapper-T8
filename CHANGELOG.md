@@ -2,6 +2,11 @@
 
 本文件记录 ComfyUI 节点本身的版本变化。模型权重的下载和说明见 Hugging Face 模型页。
 
+## [1.3.6] - 2026-08-27
+
+- 添加官方 ComfyUI-Manager 使用的 `node_list.json`，让 V3 扩展入口注册的全部 8 个节点能被“安装缺失节点”功能可靠识别。
+- 增加节点清单与 V3 schema ID 的一致性测试，防止新增或重命名节点时遗漏 Manager 映射。
+
 ## [1.3.5] - 2026-08-26
 
 - 支持官方 revision `19bc874e` 的全 BF16 Final 权重及约 35 GB 的新版 ComfyUI 单文件，同时继续严格校验并兼容原有约 50 GB 的混合精度 Final；两者都可使用现有 8-step LoRA。

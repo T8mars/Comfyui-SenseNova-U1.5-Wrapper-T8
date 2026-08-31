@@ -2,6 +2,11 @@
 
 本文件记录 ComfyUI 节点本身的版本变化。模型权重的下载和说明见 Hugging Face 模型页。
 
+## [1.3.7] - 2026-08-31
+
+- 修复使用 PyTorch SDPA attention 后端时，prefix attention mask 保持 FP32、而 Q/K/V 为 BF16 所导致的有限但数值错误的 attention 输出和异常生成结果。
+- prefix mask 现在会在调用 ComfyUI attention 后端前转换为 query dtype，并新增对应的 dtype 回归测试。
+
 ## [1.3.6] - 2026-08-27
 
 - 添加官方 ComfyUI-Manager 使用的 `node_list.json`，让 V3 扩展入口注册的全部 8 个节点能被“安装缺失节点”功能可靠识别。

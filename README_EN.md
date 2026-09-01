@@ -16,6 +16,7 @@ Supported features:
 - Generate 1 to 16 different results from the same prompt and references
 - Standard ComfyUI `KSampler`
 - Official U1.5 Final and U1.5 SFT checkpoints
+- Q2_K, Q3_K_M, Q5_K_M, Q6_K, and Q8_0 GGUF quantizations of U1.5 Final
 - Official U1.5 8-step LoRA through ComfyUI's native LoRA and `ModelPatcher` pipeline
 - Three-branch guidance with a separate `img_cfg`
 - CFG Norm and configurable CFG intervals
@@ -38,11 +39,12 @@ cd ComfyUI/custom_nodes
 git clone https://github.com/T8mars/Comfyui-SenseNova-U1.5-Wrapper-T8.git
 ```
 
-This custom node has no extra Python dependencies.
+GGUF support uses `gguf>=0.13.0`, which Manager and the Comfy CLI install automatically. After a manual clone, run `pip install "gguf>=0.13.0"` if the package is missing.
 
 ## Download the models
 
 - [Hugging Face: t8star/SenseNova-U1.5-Comfy](https://huggingface.co/t8star/SenseNova-U1.5-Comfy/)
+- [Hugging Face: realrebelai/SenseNova-U1.5-8B_GGUFs](https://huggingface.co/realrebelai/SenseNova-U1.5-8B_GGUFs)
 - [Quark model mirror](https://pan.quark.cn/s/6b756fdae32d)
 
 Download only the files you need:
@@ -53,6 +55,11 @@ Download only the files you need:
 | `SenseNova-U1.5-8B-MoT-T8.safetensors` | `ComfyUI/models/diffusion_models/` | Legacy mixed-precision U1.5 Final single file, about 50 GB; still supported |
 | `SenseNova-U1.5-8B-MoT-SFT-T8.safetensors` | `ComfyUI/models/diffusion_models/` | U1.5 SFT single-file checkpoint, about 35 GB |
 | `SenseNova-U1.5-8B-MoT-LoRA-8step-ComfyUI.safetensors` | `ComfyUI/models/loras/` | ComfyUI-native conversion of the official 8-step LoRA, about 815 MB |
+| `SenseNova-U1.5-8B-MoT-Q2_K.gguf` | `ComfyUI/models/gguf/` | Final Q2_K, about 9.26 GB |
+| `SenseNova-U1.5-8B-MoT-Q3_K_M.gguf` | `ComfyUI/models/gguf/` | Final Q3_K_M, about 10.92 GB; suggested low-VRAM starting point |
+| `SenseNova-U1.5-8B-MoT-Q5_K_M.gguf` | `ComfyUI/models/gguf/` | Final Q5_K_M, about 15.11 GB |
+| `SenseNova-U1.5-8B-MoT-Q6_K.gguf` | `ComfyUI/models/gguf/` | Final Q6_K, about 17.24 GB |
+| `SenseNova-U1.5-8B-MoT-Q8_0.gguf` | `ComfyUI/models/gguf/` | Final Q8_0, about 21.17 GB; quality-first quantization |
 
 Base-model directory:
 
@@ -66,6 +73,12 @@ LoRA directory:
 ComfyUI/models/loras/
 ```
 
+GGUF directory:
+
+```text
+ComfyUI/models/gguf/
+```
+
 ComfyUI-Manager installs the nodes only. It does not download these model files.
 
 Final and SFT are both SenseNova U1.5 checkpoints. The current BF16 Final is the official all-BF16 conversion and re-shard of the same Final model; this node strictly supports both the current 35 GB Final and the legacy 50 GB Final. SFT is a separate training-stage checkpoint.
@@ -77,6 +90,8 @@ The official 8-step LoRA must be used with Final. Do not apply it to SFT or Prev
 | U1.5 Final BF16, 50-step generation/editing | ✅ | Current recommended checkpoint, about 35 GB |
 | Legacy mixed-precision U1.5 Final, 50-step generation/editing | ✅ | Existing downloads remain supported, about 50 GB |
 | U1.5 Final + `-ComfyUI` 8-step LoRA | ✅ | 8-step text-to-image only |
+| U1.5 Final GGUF, 50-step generation/editing | ✅ | Five quantizations verified by exact size, SHA256, tensor names, and shapes |
+| U1.5 Final GGUF + `-ComfyUI` 8-step LoRA | ✅ | Native ModelPatcher path; validate the environment at 50 steps first |
 | U1.5 SFT, 50-step generation/editing | ✅ | Standalone checkpoint; do not add the 8-step LoRA |
 | U1.5 Preview | ❌ | Older preview checkpoint |
 | Unconverted official raw LoRA | ❌ | Use the `-ComfyUI` file or convert it with the included tool |
@@ -86,6 +101,9 @@ The official 8-step LoRA must be used with Final. Do not apply it to SFT or Prev
 These are normal ComfyUI canvas workflows. Download a JSON file and drag it onto the ComfyUI canvas. There are no API-format workflows in this repository. For editing workflows, select your own image in each `Load Image` node after importing.
 
 - [Text-to-image](examples/t2i_workflow.json)
+- [GGUF text-to-image](examples/gguf_t2i_workflow.json)
+- [GGUF image editing](examples/gguf_edit_workflow.json)
+- [GGUF live-validation record](docs/gguf-validation.md)
 - [Batch text-to-image, two results by default](examples/batch_t2i_workflow.json)
 - [8-step LoRA text-to-image](examples/t2i_8step_workflow.json)
 - [Standard image editing, img_cfg=1](examples/edit_workflow.json)
@@ -102,6 +120,8 @@ These two workflows target ComfyUI builds that include native SenseNova U1.5 cor
 
 The core workflows use ComfyUI's built-in `CheckpointLoaderSimple`, so place the base checkpoint in `ComfyUI/models/checkpoints/`. The 8-step LoRA can use the built-in `LoraLoaderModelOnly`; keep the LoRA file in `ComfyUI/models/loras/`.
 The merged core implementation reuses `EmptyHiDreamO1LatentImage` and `HiDreamO1ReferenceImages`, so use a ComfyUI build that includes [PR #15922](https://github.com/Comfy-Org/ComfyUI/pull/15922).
+
+The GGUF workflows use this repository's `SenseNova U1.5 GGUF Loader (Final)`. It dequantizes weights on demand while keeping MODEL, CLIP, VAE, sampling, scheduling, LoRA, and VRAM offloading on ComfyUI's native interfaces. It does not require the separate ComfyUI-GGUF custom node. No Q4 file is currently published in the linked model repository, so Q4 is not listed as a verified download.
 
 Start with these settings:
 
@@ -223,6 +243,22 @@ The node inserts official `Image-1`, `Image-2`, and later labels, and processes 
 
 All images below were generated by this custom node. They were not color-graded or retouched afterward.
 
+### Q6_K GGUF: 512×512, 50-step text-to-image
+
+[Open the original 512×512 PNG](docs/images/result-gguf-q6-t2i-512.png)
+
+![SenseNova U1.5 Q6_K GGUF glass teapot](docs/images/result-gguf-q6-t2i-512.png)
+
+Q6_K GGUF, 512×512, 50 steps, CFG 4, shift 3, Euler/normal, seed 424242. On an RTX 5090 Laptop GPU with 24 GB VRAM and PyTorch 2.7.0 + CUDA 12.8, the warmed-up sampler took 288 seconds, or about 5.7 seconds per step. Device usage approached 24 GB. The first run also pays a substantial quantized-kernel cold-start cost; Q3 and Q6 differ sharply in both speed and quality, so file size alone should not determine the choice.
+
+### Q6_K GGUF + official LoRA: 512×512, 8-step text-to-image
+
+[Open the original 512×512 PNG](docs/images/result-gguf-q6-lora-8step-512.png)
+
+![SenseNova U1.5 Q6_K GGUF 8-step LoRA glass teapot](docs/images/result-gguf-q6-lora-8step-512.png)
+
+Q6_K GGUF, official `-ComfyUI` 8-step LoRA, 512×512, 8 steps, CFG 1, shift 3, Euler/normal, seed 424242. All 294 LoRA patches were applied through the native ModelPatcher path, and core sampling took 19.9 seconds. See the [GGUF live-validation record](docs/gguf-validation.md) for the complete Q3/Q6/Q8 comparison and test boundaries.
+
 ### 2048×2048 dual-reference clothing transfer
 
 [Open the original 2048×2048 PNG](docs/images/result-garment-edit-2048.png)
@@ -292,6 +328,7 @@ Local and CI validation coverage:
 - NVIDIA CUDA with BF16 support
 - RTX 5090 Laptop GPU, 24 GB VRAM
 - 64 GB system RAM
+- Real Q3_K_M, Q6_K, and Q8_0 GGUF SHA256 verification, the complete 1116-tensor contract, full model loading, T2I, Q6 image editing, and the official 8-step LoRA path
 
 2048×2048 50-step text-to-image generation, dual-reference editing, and `512×512, batch_size=2` full-model batch execution all completed on 24 GB VRAM. Loading and offloading the model also uses substantial system memory. 64 GB RAM and enough virtual memory are recommended.
 
@@ -299,8 +336,11 @@ Local and CI validation coverage:
 
 - Only NVIDIA CUDA with BF16 has been fully validated.
 - Models are not downloaded automatically at runtime.
-- Quantization, bbox/marker controls, and think mode are not exposed yet.
+- Bbox/marker controls and think mode are not exposed yet.
 - Complex subject replacement, multi-region edits, and heavily constrained edits can drift.
+- Small diagonal or vertical text can degrade during editing; upstream has confirmed this as a [model limitation targeted for improvement](https://github.com/OpenSenseNova/SenseNova-U1/issues/275).
+- Upstream is investigating an [isolated edit-collapse report at the source resolution](https://github.com/OpenSenseNova/SenseNova-U1/issues/278). If it occurs, try the nearest official resolution bucket and preserve the workflow, input image, and seed when reporting it.
+- Q8_0 ran close to the VRAM limit on the 24 GB test machine. Q2_K and Q5_K_M have strict file and tensor validation but were not part of this live-sampling matrix.
 - FP16, ROCm, MPS, DirectML, XPU, and NPU have not been validated.
 
 ## Model verification
@@ -334,7 +374,17 @@ Tensors: 1116, all stored as BF16
 Source revision: 661834c5b5aee0f89958353511d6ac0ccaacb646
 ```
 
-The loader distinguishes current Final, legacy Final, and SFT files and checks metadata, exact file size, all tensor names, shapes, and each profile's storage dtype. Invalid, incomplete, and unsupported checkpoints fail with a clear error instead of loading silently.
+Final GGUF files (source revision `bc2e8f83688489e6b465daa833e9b318ea45c9d9`):
+
+| File | Exact size (bytes) | SHA256 |
+|---|---:|---|
+| `SenseNova-U1.5-8B-MoT-Q2_K.gguf` | 9,264,536,960 | `98f947928474f45e4c0c149f1af6009f15f99abd524b4dd36e2324d29303f2e5` |
+| `SenseNova-U1.5-8B-MoT-Q3_K_M.gguf` | 10,920,713,600 | `82ccb1ee4cfd24d605ecaa97c99f799eef7bb78577185b0c1662d3d83c399636` |
+| `SenseNova-U1.5-8B-MoT-Q5_K_M.gguf` | 15,107,169,664 | `1c496256eb114a5ff8fef278a63b39a75bd0c36e76f4280e89a06bb6ecb76ade` |
+| `SenseNova-U1.5-8B-MoT-Q6_K.gguf` | 17,240,972,672 | `ded187014c0e34e13d20702d426a1741e9ec2aa698f3466df95ca0116d0e5ea2` |
+| `SenseNova-U1.5-8B-MoT-Q8_0.gguf` | 21,174,689,152 | `61b227f036b7e8094cceab888c23b17a3fffc32d6182b039836d7cb31d688fe2` |
+
+The loader distinguishes current Final, legacy Final, SFT, and the five GGUF profiles. It checks metadata, exact size, SHA256, every tensor name and shape, and allowed storage or quantization types. Invalid, incomplete, and unsupported checkpoints fail with a clear error instead of loading silently.
 
 ### If you see `checkpoint key mismatch`
 

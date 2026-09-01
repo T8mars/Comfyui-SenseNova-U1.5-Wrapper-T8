@@ -17,6 +17,8 @@ class ExampleWorkflowTests(unittest.TestCase):
             "core_edit_workflow.json",
             "core_t2i_workflow.json",
             "edit_workflow.json",
+            "gguf_edit_workflow.json",
+            "gguf_t2i_workflow.json",
             "multi_reference_edit_workflow.json",
             "sft_edit_workflow.json",
             "sft_t2i_workflow.json",
@@ -38,6 +40,8 @@ class ExampleWorkflowTests(unittest.TestCase):
             "t2i_workflow.json",
             "t2i_8step_workflow.json",
             "edit_workflow.json",
+            "gguf_edit_workflow.json",
+            "gguf_t2i_workflow.json",
             "multi_reference_edit_workflow.json",
             "sft_t2i_workflow.json",
             "sft_edit_workflow.json",
@@ -75,6 +79,17 @@ class ExampleWorkflowTests(unittest.TestCase):
         sampler = next(node for node in workflow["nodes"] if node["type"] == "KSampler")
         self.assertEqual(loader["widgets_values"], ["SenseNova-U1.5-8B-MoT-BF16-T8.safetensors"])
         self.assertEqual(sampler["widgets_values"][2:], [50, 4, "euler", "normal", 1])
+
+    def test_gguf_examples_use_verified_q3_loader_and_native_pipeline(self):
+        for name in ("gguf_t2i_workflow.json", "gguf_edit_workflow.json"):
+            workflow = self.load_example(name)
+            loader = next(node for node in workflow["nodes"] if node["type"] == "SenseNovaU15GGUFLoader")
+            sampler = next(node for node in workflow["nodes"] if node["type"] == "KSampler")
+            options = next(node for node in workflow["nodes"] if node["type"] == "SenseNovaSamplingOptions")
+            with self.subTest(name=name):
+                self.assertEqual(loader["widgets_values"], ["SenseNova-U1.5-8B-MoT-Q3_K_M.gguf"])
+                self.assertEqual(sampler["widgets_values"][2:], [50, 4, "euler", "normal", 1])
+                self.assertEqual(options["widgets_values"], [3])
 
     def test_batch_t2i_generates_two_variants_at_a_safe_example_resolution(self):
         workflow = self.load_example("batch_t2i_workflow.json")

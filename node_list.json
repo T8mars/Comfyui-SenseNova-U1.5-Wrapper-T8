@@ -6,5 +6,6 @@
     "SenseNovaSamplingOptions": "Configure the official SenseNova U1.5 flow timestep shift and prefix caching.",
     "SenseNovaStructuredEditPrompt": "Build a structured SenseNova U1.5 image-editing instruction.",
     "SenseNovaU15EightStepLoRA": "Apply the official eight-step acceleration LoRA to a SenseNova U1.5 Final model.",
+    "SenseNovaU15GGUFLoader": "Load verified SenseNova U1.5 Final GGUF quantizations through the native ComfyUI pipeline.",
     "SenseNovaU15Loader": "Load verified SenseNova U1.5 Final or SFT checkpoints for native ComfyUI inference."
 }

@@ -6,5 +6,6 @@ __pycache__/
 roadmap.md
 *.safetensors
 *.safetensors.manifest.json
+*.gguf
 oracles/
 outputs/

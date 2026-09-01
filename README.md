@@ -14,6 +14,7 @@
 - 同一提示词/参考图一次生成 1～16 个不同结果
 - 普通 `KSampler`
 - U1.5 Final 和 U1.5 SFT 两套官方权重
+- U1.5 Final 的 Q2_K / Q3_K_M / Q5_K_M / Q6_K / Q8_0 GGUF 量化权重
 - 官方 U1.5 8-step LoRA（底层使用 ComfyUI 原生 LoRA/ModelPatcher 管道）
 - 自定义 `img_cfg` 的三路引导、CFG Norm 和 CFG 生效区间
 - 用明确的“修改 / 参考图职责 / 保持 / 禁止”结构整理复杂编辑提示词
@@ -35,11 +36,12 @@ cd ComfyUI/custom_nodes
 git clone https://github.com/T8mars/Comfyui-SenseNova-U1.5-Wrapper-T8.git
 ```
 
-本项目没有额外的 Python 依赖。
+GGUF 支持使用 `gguf>=0.13.0`；通过 Manager 或 Comfy CLI 安装时会自动安装。手动克隆后如缺少依赖，可运行 `pip install "gguf>=0.13.0"`。
 
 ## 下载模型
 
 - [Hugging Face：t8star/SenseNova-U1.5-Comfy](https://huggingface.co/t8star/SenseNova-U1.5-Comfy/)
+- [Hugging Face：realrebelai/SenseNova-U1.5-8B_GGUFs](https://huggingface.co/realrebelai/SenseNova-U1.5-8B_GGUFs)
 - [模型网盘](https://pan.quark.cn/s/6b756fdae32d)
 
 按需要下载：
@@ -50,6 +52,11 @@ git clone https://github.com/T8mars/Comfyui-SenseNova-U1.5-Wrapper-T8.git
 | `SenseNova-U1.5-8B-MoT-T8.safetensors` | `ComfyUI/models/diffusion_models/` | U1.5 Final 旧版混合精度单文件，约 50 GB，继续兼容 |
 | `SenseNova-U1.5-8B-MoT-SFT-T8.safetensors` | `ComfyUI/models/diffusion_models/` | U1.5 SFT 单文件底模，约 35 GB |
 | `SenseNova-U1.5-8B-MoT-LoRA-8step-ComfyUI.safetensors` | `ComfyUI/models/loras/` | 官方 8-step LoRA 的 ComfyUI 原生键名版本，约 815 MB |
+| `SenseNova-U1.5-8B-MoT-Q2_K.gguf` | `ComfyUI/models/gguf/` | Final Q2_K，约 9.26 GB |
+| `SenseNova-U1.5-8B-MoT-Q3_K_M.gguf` | `ComfyUI/models/gguf/` | Final Q3_K_M，约 10.92 GB，低显存建议起点 |
+| `SenseNova-U1.5-8B-MoT-Q5_K_M.gguf` | `ComfyUI/models/gguf/` | Final Q5_K_M，约 15.11 GB |
+| `SenseNova-U1.5-8B-MoT-Q6_K.gguf` | `ComfyUI/models/gguf/` | Final Q6_K，约 17.24 GB |
+| `SenseNova-U1.5-8B-MoT-Q8_0.gguf` | `ComfyUI/models/gguf/` | Final Q8_0，约 21.17 GB，量化质量优先 |
 
 底模路径：
 
@@ -63,6 +70,12 @@ LoRA 路径：
 ComfyUI/models/loras/
 ```
 
+GGUF 路径：
+
+```text
+ComfyUI/models/gguf/
+```
+
 Manager 只安装节点，不会自动下载模型。
 
 Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图像编辑。新版 BF16 Final 是官方在相同 Final 模型上进行的全 BF16 转换和重新分片；节点同时严格支持新版 35 GB Final 和旧版 50 GB Final。SFT 是不同训练阶段的独立权重，不要混为同一个文件。
@@ -74,6 +87,8 @@ Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图�
 | U1.5 Final BF16，50 步生成/编辑 | ✅ | 当前推荐模型，约 35 GB |
 | U1.5 Final 旧版混合精度，50 步生成/编辑 | ✅ | 兼容已有下载，约 50 GB |
 | U1.5 Final + `-ComfyUI` 8-step LoRA | ✅ | 仅用于 8 步文生图 |
+| U1.5 Final GGUF，50 步生成/编辑 | ✅ | 五种经过文件大小、SHA256、tensor 名称与 shape 严格校验的量化文件 |
+| U1.5 Final GGUF + `-ComfyUI` 8-step LoRA | ✅ | 原生 ModelPatcher 路径；仍建议先用 50 步验证环境 |
 | U1.5 SFT，50 步生成/编辑 | ✅ | 独立单文件底模，不叠加 8-step LoRA |
 | U1.5 Preview | ❌ | 旧预览权重 |
 | 官方未转换的 raw LoRA | ❌ | 先使用仓库转换工具，或直接下载 `-ComfyUI` 文件 |
@@ -83,6 +98,9 @@ Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图�
 下面都是 ComfyUI 画布工作流，下载 JSON 后可以直接拖进 ComfyUI。没有 API 工作流。编辑工作流打开后，先在 `Load Image` 中选择自己的图片。
 
 - [文生图工作流](examples/t2i_workflow.json)
+- [GGUF 文生图工作流](examples/gguf_t2i_workflow.json)
+- [GGUF 图像编辑工作流](examples/gguf_edit_workflow.json)
+- [GGUF 实机验证记录](docs/gguf-validation.md)
 - [批量文生图工作流（默认一次 2 张）](examples/batch_t2i_workflow.json)
 - [8-step LoRA 文生图工作流](examples/t2i_8step_workflow.json)
 - [普通编辑工作流（img_cfg=1）](examples/edit_workflow.json)
@@ -99,6 +117,8 @@ Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图�
 
 core 工作流使用 ComfyUI 自带的 `CheckpointLoaderSimple`，因此底模要放到 `ComfyUI/models/checkpoints/`。8-step LoRA 可直接使用自带的 `LoraLoaderModelOnly`，LoRA 文件仍放在 `ComfyUI/models/loras/`。
 合并后的 core 实现复用 `EmptyHiDreamO1LatentImage` 和 `HiDreamO1ReferenceImages`，因此请使用包含 [ComfyUI PR #15922](https://github.com/Comfy-Org/ComfyUI/pull/15922) 的版本。
+
+GGUF 工作流使用本仓库的 `SenseNova U1.5 GGUF Loader (Final)`。Loader 会按需解量化权重，但 MODEL、CLIP、VAE、采样器、调度器、LoRA 和显存卸载仍使用 ComfyUI 原生接口；不要求另外安装 ComfyUI-GGUF 自定义节点。Q4 文件目前没有在上述模型仓库实际发布，因此不会显示为受验证的下载选项。
 
 推荐先保持这些参数：
 
@@ -213,6 +233,22 @@ RandomNoise + KSamplerSelect + Latent├──→ SamplerCustomAdvanced
 
 下面图片都由本节点生成，参数不是后期调色结果。
 
+### Q6_K GGUF：512×512、50 步文生图
+
+[查看原始 512×512 PNG](docs/images/result-gguf-q6-t2i-512.png)
+
+![SenseNova U1.5 Q6_K GGUF 玻璃茶壶](docs/images/result-gguf-q6-t2i-512.png)
+
+参数：Q6_K GGUF、512×512、50 步、CFG 4、shift 3、Euler/normal、seed 424242。RTX 5090 Laptop 24 GB、PyTorch 2.7.0 + CUDA 12.8 上，量化算子预热后的核心采样为 288 秒，稳定约 5.7 秒/步；峰值设备占用接近 24 GB。首次运行还会有明显的量化算子冷启动开销，Q3/Q6 的速度和质量差异都很大，不应只按文件大小选择。
+
+### Q6_K GGUF + 官方 LoRA：512×512、8 步文生图
+
+[查看原始 512×512 PNG](docs/images/result-gguf-q6-lora-8step-512.png)
+
+![SenseNova U1.5 Q6_K GGUF 8-step LoRA 玻璃茶壶](docs/images/result-gguf-q6-lora-8step-512.png)
+
+参数：Q6_K GGUF、官方 `-ComfyUI` 8-step LoRA、512×512、8 步、CFG 1、shift 3、Euler/normal、seed 424242。294 个 LoRA patch 全部通过原生 ModelPatcher 应用，核心采样为 19.9 秒。完整的 Q3/Q6/Q8 对照数据和测试边界见 [GGUF 实机验证记录](docs/gguf-validation.md)。
+
 ### 2048×2048 双参考人物换装
 
 [查看原始 2048×2048 PNG](docs/images/result-garment-edit-2048.png)
@@ -278,6 +314,7 @@ SenseNova 的文字和参考图 prefix 在每一步都相同。`SenseNova Sampli
 - NVIDIA CUDA + BF16
 - RTX 5090 Laptop 24 GB
 - 64 GB 系统内存
+- 真实 Q3_K_M / Q6_K / Q8_0 GGUF 文件的 SHA256、1116 tensor 契约、完整模型加载、T2I、Q6 图像编辑与官方 8-step LoRA 路径
 
 2048×2048、50 步文生图和双参考图编辑，以及 `512×512、batch_size=2` 的完整模型批量执行，都能在 24 GB 显存下完成。模型加载和卸载还会占用较多系统内存，建议准备 64 GB RAM 和足够的虚拟内存。
 
@@ -285,8 +322,11 @@ SenseNova 的文字和参考图 prefix 在每一步都相同。`SenseNova Sampli
 
 - 只验证了 NVIDIA CUDA + BF16
 - 不支持运行时自动下载模型
-- 量化、bbox/marker 和 think mode 暂未开放
+- bbox/marker 和 think mode 暂未开放
 - 复杂主体替换、多区域或多约束编辑可能出现内容漂移
+- 斜排、竖排的小字在编辑中可能损坏，这是上游已确认会继续改进的[模型限制](https://github.com/OpenSenseNova/SenseNova-U1/issues/275)
+- 上游正在调查个别“保持原分辨率”编辑崩坏的[案例](https://github.com/OpenSenseNova/SenseNova-U1/issues/278)；遇到时可先改用最接近的官方分辨率桶，并保留工作流、输入图和 seed 反馈
+- Q8_0 在 24 GB 实测机上接近显存上限；Q2_K / Q5_K_M 已纳入严格文件与 tensor 校验，但尚未进入本次实机采样矩阵
 - FP16、ROCm、MPS、DirectML、XPU、NPU 暂未验证
 
 ## 模型校验
@@ -320,7 +360,17 @@ tensor：1116（全部 BF16）
 revision：661834c5b5aee0f89958353511d6ac0ccaacb646
 ```
 
-节点会区分新版 Final、旧版 Final 和 SFT，并检查 metadata、全部 tensor 名称、shape 和各版本的存储 dtype。如果下载不完整或版本不对，会直接报错，不会静默加载错误权重。
+Final GGUF（来源 revision `bc2e8f83688489e6b465daa833e9b318ea45c9d9`）：
+
+| 文件 | 精确大小（bytes） | SHA256 |
+|---|---:|---|
+| `SenseNova-U1.5-8B-MoT-Q2_K.gguf` | 9,264,536,960 | `98f947928474f45e4c0c149f1af6009f15f99abd524b4dd36e2324d29303f2e5` |
+| `SenseNova-U1.5-8B-MoT-Q3_K_M.gguf` | 10,920,713,600 | `82ccb1ee4cfd24d605ecaa97c99f799eef7bb78577185b0c1662d3d83c399636` |
+| `SenseNova-U1.5-8B-MoT-Q5_K_M.gguf` | 15,107,169,664 | `1c496256eb114a5ff8fef278a63b39a75bd0c36e76f4280e89a06bb6ecb76ade` |
+| `SenseNova-U1.5-8B-MoT-Q6_K.gguf` | 17,240,972,672 | `ded187014c0e34e13d20702d426a1741e9ec2aa698f3466df95ca0116d0e5ea2` |
+| `SenseNova-U1.5-8B-MoT-Q8_0.gguf` | 21,174,689,152 | `61b227f036b7e8094cceab888c23b17a3fffc32d6182b039836d7cb31d688fe2` |
+
+节点会区分新版 Final、旧版 Final、SFT 和五种 GGUF，并检查 metadata、精确大小、SHA256、全部 tensor 名称、shape 以及允许的存储/量化类型。如果下载不完整或版本不对，会直接报错，不会静默加载错误权重。
 
 ### 出现 `checkpoint key mismatch` 怎么办
 

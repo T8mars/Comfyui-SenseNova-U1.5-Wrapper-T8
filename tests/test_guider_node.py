@@ -186,6 +186,7 @@ class EditGuiderNodeTests(unittest.TestCase):
             actual,
             {
                 "SenseNovaU15Loader": 3,
+                "SenseNovaU15GGUFLoader": 3,
                 "SenseNovaU15EightStepLoRA": 1,
                 "EmptySenseNovaLatentImage": 1,
                 "SenseNovaSamplingOptions": 1,

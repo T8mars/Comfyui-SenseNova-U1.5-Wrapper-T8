@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 
 from typing_extensions import override
 
@@ -21,6 +22,11 @@ from .sensenova_u15.guidance import (
     rescale_denoised_guidance,
 )
 from .sensenova_u15.sampling import SenseNovaModelSampling
+
+
+GGUF_MODEL_DIR = Path(folder_paths.models_dir) / "gguf"
+GGUF_MODEL_DIR.mkdir(parents=True, exist_ok=True)
+folder_paths.folder_names_and_paths["sensenova_gguf"] = ([str(GGUF_MODEL_DIR)], {".gguf"})
 
 
 RESOLUTION_PRESETS = {
@@ -55,6 +61,41 @@ class SenseNovaU15Loader(io.ComfyNode):
         model_path = folder_paths.get_full_path_or_raise("diffusion_models", model_name)
         clip = load_sensenova_clip()
         model = load_sensenova_model(model_path, torch.bfloat16)
+        return io.NodeOutput(model, clip, load_pixel_vae())
+
+
+class SenseNovaU15GGUFLoader(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SenseNovaU15GGUFLoader",
+            display_name="SenseNova U1.5 GGUF Loader (Final)",
+            category="loaders/SenseNova",
+            description=(
+                "Load a verified Q2_K, Q3_K_M, Q5_K_M, Q6_K, or Q8_0 quantization of the "
+                "official SenseNova U1.5 Final model while keeping the native ComfyUI pipeline."
+            ),
+            inputs=[
+                io.Combo.Input(
+                    id="model_name",
+                    options=folder_paths.get_filename_list("sensenova_gguf"),
+                ),
+            ],
+            outputs=[io.Model.Output(), io.Clip.Output(), io.Vae.Output()],
+        )
+
+    @classmethod
+    def execute(cls, *, model_name):
+        try:
+            from .sensenova_u15.gguf_support import load_sensenova_gguf_model
+        except ImportError as error:
+            raise ImportError(
+                "SenseNova U1.5 GGUF support requires the Python package `gguf>=0.13.0`. "
+                "Reinstall or update this custom node through ComfyUI Manager."
+            ) from error
+        model_path = folder_paths.get_full_path_or_raise("sensenova_gguf", model_name)
+        clip = load_sensenova_clip()
+        model = load_sensenova_gguf_model(model_path, torch.bfloat16)
         return io.NodeOutput(model, clip, load_pixel_vae())
 
 
@@ -433,6 +474,7 @@ class SenseNovaExtension(ComfyExtension):
     async def get_node_list(self):
         return [
             SenseNovaU15Loader,
+            SenseNovaU15GGUFLoader,
             SenseNovaU15EightStepLoRA,
             EmptySenseNovaLatentImage,
             SenseNovaSamplingOptions,

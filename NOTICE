@@ -10,3 +10,9 @@ Model and reference implementation:
 
 ComfyUI is a separate project and is used through its public model, node,
 sampling, attention, operation, and model-management interfaces.
+
+GGUF support:
+- Verified quantized files: realrebelai/SenseNova-U1.5-8B_GGUFs, revision
+  bc2e8f83688489e6b465daa833e9b318ea45c9d9
+- Tensor loading and on-demand dequantization are adapted from
+  city96/ComfyUI-GGUF; Copyright City96 contributors; Apache License 2.0

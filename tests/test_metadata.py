@@ -16,7 +16,8 @@ class MetadataTests(unittest.TestCase):
     def test_registry_metadata(self):
         metadata = tomllib.loads((PACKAGE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(metadata["project"]["name"], "sensenova-u15-t8")
-        self.assertEqual(metadata["project"]["version"], "1.3.8")
+        self.assertEqual(metadata["project"]["version"], "1.4.0")
+        self.assertIn("gguf>=0.13.0", metadata["project"]["dependencies"])
         self.assertEqual(metadata["tool"]["comfy"]["PublisherId"], "t8star")
         self.assertEqual(metadata["tool"]["comfy"]["DisplayName"], "SenseNova U1.5 (T8)")
         self.assertTrue(metadata["project"]["urls"]["Model Download"].startswith("https://huggingface.co/t8star/"))
@@ -52,7 +53,7 @@ class MetadataTests(unittest.TestCase):
 
     def test_registry_package_excludes_local_and_large_files(self):
         patterns = set((PACKAGE_ROOT / ".comfyignore").read_text(encoding="utf-8").splitlines())
-        self.assertTrue({"roadmap.md", "*.safetensors", "oracles/", "tools/"}.issubset(patterns))
+        self.assertTrue({"roadmap.md", "*.safetensors", "*.gguf", "oracles/", "tools/"}.issubset(patterns))
         self.assertFalse(any(pattern in {"*.json", "sensenova_u15/", "checkpoint_contract.json"} for pattern in patterns))
 
     def test_github_maintenance_configuration(self):
@@ -83,6 +84,8 @@ class MetadataTests(unittest.TestCase):
             "result-t2i-2048.png",
             "result-multi-reference-2048.png",
             "result-garment-edit-2048.png",
+            "result-gguf-q6-t2i-512.png",
+            "result-gguf-q6-lora-8step-512.png",
         ):
             with self.subTest(name=name):
                 self.assertGreater((PACKAGE_ROOT / "docs" / "images" / name).stat().st_size, 1024)

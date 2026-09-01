@@ -58,15 +58,16 @@ class ExampleWorkflowTests(unittest.TestCase):
             workflow = self.load_example(name)
             loader = next(node for node in workflow["nodes"] if node["type"] == "CheckpointLoaderSimple")
             options = next(node for node in workflow["nodes"] if node["type"] == "SenseNovaSamplingOptions")
-            latent = next(node for node in workflow["nodes"] if node["type"] == "EmptySenseNovaLatentImage")
+            latent = next(node for node in workflow["nodes"] if node["type"] == "EmptyHiDreamO1LatentImage")
             with self.subTest(name=name):
                 self.assertEqual(loader["widgets_values"], ["SenseNova-U1.5-8B-MoT-BF16-T8.safetensors"])
                 self.assertEqual(options["widgets_values"], [3])
                 self.assertEqual(latent["widgets_values"], [1024, 1024, 1])
 
         edit = self.load_example("core_edit_workflow.json")
-        reference = next(node for node in edit["nodes"] if node["type"] == "SenseNovaReferenceImages")
+        reference = next(node for node in edit["nodes"] if node["type"] == "HiDreamO1ReferenceImages")
         self.assertEqual([value["name"] for value in reference["inputs"]], ["positive", "negative", "image_1"])
+        self.assertEqual([value["name"] for value in reference["outputs"]], ["positive", "negative"])
 
     def test_frontend_t2i_uses_official_defaults(self):
         workflow = self.load_example("t2i_workflow.json")

@@ -200,7 +200,7 @@
     },
     {
       "id": 6,
-      "type": "SenseNovaReferenceImages",
+      "type": "HiDreamO1ReferenceImages",
       "pos": [
         870,
         190
@@ -238,7 +238,7 @@
           ]
         },
         {
-          "name": "image_condition",
+          "name": "negative",
           "type": "CONDITIONING",
           "links": [
             9
@@ -246,13 +246,13 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "SenseNovaReferenceImages"
+        "Node name for S&R": "HiDreamO1ReferenceImages"
       },
       "widgets_values": []
     },
     {
       "id": 7,
-      "type": "EmptySenseNovaLatentImage",
+      "type": "EmptyHiDreamO1LatentImage",
       "pos": [
         890,
         390
@@ -275,7 +275,7 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptySenseNovaLatentImage"
+        "Node name for S&R": "EmptyHiDreamO1LatentImage"
       },
       "widgets_values": [
         1024,

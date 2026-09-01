@@ -163,7 +163,7 @@
     },
     {
       "id": 5,
-      "type": "EmptySenseNovaLatentImage",
+      "type": "EmptyHiDreamO1LatentImage",
       "pos": [
         470,
         360
@@ -186,7 +186,7 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptySenseNovaLatentImage"
+        "Node name for S&R": "EmptyHiDreamO1LatentImage"
       },
       "widgets_values": [
         1024,

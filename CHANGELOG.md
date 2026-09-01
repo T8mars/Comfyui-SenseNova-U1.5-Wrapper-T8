@@ -2,6 +2,11 @@
 
 本文件记录 ComfyUI 节点本身的版本变化。模型权重的下载和说明见 Hugging Face 模型页。
 
+## [1.3.8] - 2026-09-01
+
+- 同步已合并的 ComfyUI core SenseNova U1.5 实现，更新原生文生图与图像编辑工作流。
+- core 工作流改用官方复用的 `EmptyHiDreamO1LatentImage` 和 `HiDreamO1ReferenceImages` 节点，并增加接口回归测试。
+
 ## [1.3.7] - 2026-08-31
 
 - 修复使用 PyTorch SDPA attention 后端时，prefix attention mask 保持 FP32、而 Q/K/V 为 BF16 所导致的有限但数值错误的 attention 输出和异常生成结果。

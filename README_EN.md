@@ -101,6 +101,7 @@ These two workflows target ComfyUI builds that include native SenseNova U1.5 cor
 - [Native core image editing](examples/core_edit_workflow.json)
 
 The core workflows use ComfyUI's built-in `CheckpointLoaderSimple`, so place the base checkpoint in `ComfyUI/models/checkpoints/`. The 8-step LoRA can use the built-in `LoraLoaderModelOnly`; keep the LoRA file in `ComfyUI/models/loras/`.
+The merged core implementation reuses `EmptyHiDreamO1LatentImage` and `HiDreamO1ReferenceImages`, so use a ComfyUI build that includes [PR #15922](https://github.com/Comfy-Org/ComfyUI/pull/15922).
 
 Start with these settings:
 

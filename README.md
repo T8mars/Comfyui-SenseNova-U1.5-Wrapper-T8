@@ -98,6 +98,7 @@ Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图�
 - [core 原生图像编辑工作流](examples/core_edit_workflow.json)
 
 core 工作流使用 ComfyUI 自带的 `CheckpointLoaderSimple`，因此底模要放到 `ComfyUI/models/checkpoints/`。8-step LoRA 可直接使用自带的 `LoraLoaderModelOnly`，LoRA 文件仍放在 `ComfyUI/models/loras/`。
+合并后的 core 实现复用 `EmptyHiDreamO1LatentImage` 和 `HiDreamO1ReferenceImages`，因此请使用包含 [ComfyUI PR #15922](https://github.com/Comfy-Org/ComfyUI/pull/15922) 的版本。
 
 推荐先保持这些参数：
 

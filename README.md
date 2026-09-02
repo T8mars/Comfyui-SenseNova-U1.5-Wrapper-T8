@@ -204,6 +204,8 @@ LoRA 强度保持 `1`。这个 LoRA 是官方发布的快速文生图适配器�
 
 参考图要接到 `SenseNova Reference Image`，不要把参考图当作 latent。`img_cfg=1` 时，可以继续用普通 `KSampler`；把节点输出的 `image_condition` 接到 KSampler 的 negative。
 
+如果参考图是刚由 SenseNova 文生图生成的，编辑时请把 KSampler 的 seed 改成与原图生成时不同的值。上游已确认复用相同 seed 可能造成分布偏移并出现画面崩坏；更换 seed 后仍异常时，再尝试最接近的官方分辨率预设。参见[上游说明](https://github.com/OpenSenseNova/SenseNova-U1/issues/278#issuecomment-5503345718)。
+
 ### 多参考图和自定义引导
 
 普通的 `SenseNova Reference Image` 节点只显示 `Image-1` 和可选的 `Image-2`，不会再多出一个容易误接的空白第三插槽。需要 3～10 张图时，改用 `SenseNova Reference Images (1-10)` 节点。图像顺序就是提示词中的 `Image-1`、`Image-2`。人物换装时，`Image-1` 放人物主图，`Image-2` 放服装图。旧版工作流中的 `images.image` 名称会在导入时自动迁移；旧工作流使用 3 张以上参考图时，也会自动切换到 1～10 张版本。
@@ -325,7 +327,7 @@ SenseNova 的文字和参考图 prefix 在每一步都相同。`SenseNova Sampli
 - bbox/marker 和 think mode 暂未开放
 - 复杂主体替换、多区域或多约束编辑可能出现内容漂移
 - 斜排、竖排的小字在编辑中可能损坏，这是上游已确认会继续改进的[模型限制](https://github.com/OpenSenseNova/SenseNova-U1/issues/275)
-- 上游正在调查个别“保持原分辨率”编辑崩坏的[案例](https://github.com/OpenSenseNova/SenseNova-U1/issues/278)；遇到时可先改用最接近的官方分辨率桶，并保留工作流、输入图和 seed 反馈
+- 用 SenseNova 文生图结果继续编辑时，复用相同 seed 可能因分布偏移导致画面崩坏；请按[上游确认的处理办法](https://github.com/OpenSenseNova/SenseNova-U1/issues/278#issuecomment-5503345718)更换 seed，仍异常时再尝试最接近的官方分辨率预设
 - Q8_0 在 24 GB 实测机上接近显存上限；Q2_K / Q5_K_M 已纳入严格文件与 tensor 校验，但尚未进入本次实机采样矩阵
 - FP16、ROCm、MPS、DirectML、XPU、NPU 暂未验证
 

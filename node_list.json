@@ -1,8 +1,8 @@
 {
     "EmptySenseNovaLatentImage": "Create an empty pixel-space latent with official SenseNova U1.5 resolution presets and batch support.",
     "SenseNovaEditGuider": "Apply three-branch text and reference-image guidance for SenseNova U1.5 editing workflows.",
-    "SenseNovaReferenceImage": "Attach one or two reference images to a SenseNova U1.5 editing workflow.",
-    "SenseNovaReferenceImageAdvanced": "Attach up to ten reference images to a SenseNova U1.5 editing workflow.",
+    "SenseNovaReferenceImage": "Attach one or two reference images to a SenseNova U1.5 editing workflow; use a new seed when editing a SenseNova-generated image.",
+    "SenseNovaReferenceImageAdvanced": "Attach up to ten reference images to a SenseNova U1.5 editing workflow; use a new seed when editing a SenseNova-generated image.",
     "SenseNovaSamplingOptions": "Configure the official SenseNova U1.5 flow timestep shift and prefix caching.",
     "SenseNovaStructuredEditPrompt": "Build a structured SenseNova U1.5 image-editing instruction.",
     "SenseNovaU15EightStepLoRA": "Apply the official eight-step acceleration LoRA to a SenseNova U1.5 Final model.",

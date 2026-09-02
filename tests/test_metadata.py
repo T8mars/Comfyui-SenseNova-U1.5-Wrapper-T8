@@ -16,7 +16,7 @@ class MetadataTests(unittest.TestCase):
     def test_registry_metadata(self):
         metadata = tomllib.loads((PACKAGE_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(metadata["project"]["name"], "sensenova-u15-t8")
-        self.assertEqual(metadata["project"]["version"], "1.5.0")
+        self.assertEqual(metadata["project"]["version"], "1.5.1")
         self.assertIn("gguf>=0.13.0", metadata["project"]["dependencies"])
         self.assertEqual(metadata["tool"]["comfy"]["PublisherId"], "t8star")
         self.assertEqual(metadata["tool"]["comfy"]["DisplayName"], "SenseNova U1.5 (T8)")
@@ -35,7 +35,9 @@ class MetadataTests(unittest.TestCase):
         self.assertIn("SenseNovaReferenceImage", extension)
         self.assertIn("migrateLegacyReferenceInputs", extension)
         interleave = (PACKAGE_ROOT / "web" / "sensenova_interleave_preview.js").read_text(encoding="utf-8")
+        self.assertIn("SenseNovaThinkingPreview", interleave)
         self.assertIn("SenseNovaInterleavePreview", interleave)
+        self.assertIn("renderThinking", interleave)
         self.assertIn("renderParts", interleave)
         self.assertIn('WEB_DIRECTORY = "./web"', (PACKAGE_ROOT / "__init__.py").read_text(encoding="utf-8"))
         self.assertGreater((PACKAGE_ROOT / "sensenova_u15" / "checkpoint_contract.json").stat().st_size, 100_000)

@@ -23,8 +23,10 @@ spec.loader.exec_module(package)
 
 from comfyui_sensenova_u15_t8_interleave_tests.nodes import (
     SenseNovaInterleave,
+    SenseNovaInterleavePreview,
     SenseNovaTextEncode,
     SenseNovaThinkingPreview,
+    _interleave_preview_parts,
     interleave_output_samples,
 )
 from comfyui_sensenova_u15_t8_interleave_tests.sensenova_u15 import model as sensenova_model
@@ -332,6 +334,94 @@ class InterleaveNodeTests(unittest.TestCase):
         self.assertEqual(
             interleave_result_to_markdown(payload, include_think=False),
             "Hello\n\n[image:0]\n\nMiddle\n\n[image:1]\n\nAfter",
+        )
+
+    def test_preview_places_thinking_images_at_final_references(self):
+        result = {
+            "parts": [
+                {"type": "think", "text": "plan first image"},
+                {"type": "image", "index": 0},
+                {"type": "think", "text": "plan second image"},
+                {"type": "image", "index": 1},
+                {
+                    "type": "text",
+                    "text": "First description\n<image1>\nSecond description\n<image2>",
+                },
+            ]
+        }
+
+        display_parts = _interleave_preview_parts(result, include_think=False)
+
+        self.assertEqual(
+            display_parts,
+            [
+                {"type": "text", "text": "First description"},
+                {"type": "image", "index": 0},
+                {"type": "text", "text": "Second description"},
+                {"type": "image", "index": 1},
+            ],
+        )
+
+    def test_preview_hides_final_references_when_showing_thinking(self):
+        result = {
+            "parts": [
+                {"type": "think", "text": "plan"},
+                {"type": "image", "index": 0},
+                {"type": "text", "text": "Answer<image1>Done"},
+            ]
+        }
+
+        display_parts = _interleave_preview_parts(result, include_think=True)
+
+        self.assertEqual(
+            display_parts,
+            [
+                {"type": "think", "text": "plan"},
+                {"type": "image", "index": 0},
+                {"type": "text", "text": "Answer"},
+                {"type": "text", "text": "Done"},
+            ],
+        )
+
+    def test_preview_removes_unresolved_and_non_positive_references(self):
+        result = {
+            "parts": [
+                {"type": "image", "index": 0},
+                {"type": "text", "text": "Before<image99>Middle<image0>After"},
+            ]
+        }
+
+        display_parts = _interleave_preview_parts(result, include_think=False)
+
+        self.assertEqual(
+            display_parts,
+            [
+                {"type": "image", "index": 0},
+                {"type": "text", "text": "Before"},
+                {"type": "text", "text": "Middle"},
+                {"type": "text", "text": "After"},
+            ],
+        )
+
+    def test_preview_node_emits_resolved_markdown_and_ui_order(self):
+        result = {
+            "parts": [
+                {"type": "think", "text": "plan"},
+                {"type": "image", "index": 0},
+                {"type": "text", "text": "Caption<image1>Ending"},
+            ]
+        }
+
+        output = SenseNovaInterleavePreview.execute(
+            interleave_result=result,
+            include_think=False,
+            images=None,
+        )
+
+        self.assertEqual(output[0], "Caption\n\n[image:0]\n\nEnding")
+        self.assertEqual(
+            [part["type"] for part in output.ui["parts"]],
+            ["text", "image", "text"],
         )
 
     def test_no_generated_image_keeps_input_latent(self):

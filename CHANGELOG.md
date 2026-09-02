@@ -2,6 +2,11 @@
 
 本文件记录 ComfyUI 节点本身的版本变化。模型权重的下载和说明见 Hugging Face 模型页。
 
+## [1.5.1] - 2026-09-02
+
+- 修复 ComfyUI 0.33 / frontend 1.49 中 `SenseNova Thinking Preview` 后端已返回思考文本、但画布节点不显示的问题；新增自带 DOM 预览并兼容字符串和数组两种 `text` 事件格式。
+- 经本机 ComfyUI 0.33.0 + frontend 1.49.6 浏览器端实际执行验证，Thinking Preview 可在节点内显示真实思考文本，且保留 1.5.0 的 Interleave 顺序化文字/图片预览。
+
 ## [1.5.0] - 2026-09-02
 
 - 将 ComfyUI core PR [#16032](https://github.com/Comfy-Org/ComfyUI/pull/16032) 的 SenseNova thinking 与交错文本/图像生成能力适配到本节点；无需修改本地 ComfyUI core。

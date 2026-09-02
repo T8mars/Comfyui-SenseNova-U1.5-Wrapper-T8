@@ -2,6 +2,11 @@
 
 本文件记录 ComfyUI 节点本身的版本变化。模型权重的下载和说明见 Hugging Face 模型页。
 
+## [1.4.1] - 2026-09-02
+
+- 根据上游确认的结论，补充“编辑 SenseNova 自生成图片时应更换 seed”的中英文说明，避免复用文生图 seed 引起分布偏移和画面崩坏。
+- 同步更新参考图节点和 ComfyUI-Manager 节点清单的帮助文字。
+
 ## [1.4.0] - 2026-09-01
 
 - 新增独立的 `SenseNova U1.5 GGUF Loader (Final)`，支持社区发布并经官方 README 收录的 Q2_K、Q3_K_M、Q5_K_M、Q6_K、Q8_0 Final 量化权重。

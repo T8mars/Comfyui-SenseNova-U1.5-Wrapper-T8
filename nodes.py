@@ -229,7 +229,11 @@ class SenseNovaReferenceImage(io.ComfyNode):
             node_id="SenseNovaReferenceImage",
             display_name="SenseNova Reference Image",
             category="conditioning/SenseNova",
-            description="Attach one or two source images for instruction editing. Use the 1-10 node for larger reference sets.",
+            description=(
+                "Attach one or two source images for instruction editing. Use the 1-10 node for "
+                "larger reference sets. When editing a SenseNova-generated image, choose a sampler "
+                "seed different from its generation seed."
+            ),
             inputs=[
                 io.Conditioning.Input(id="positive"),
                 io.Conditioning.Input(id="negative"),
@@ -282,7 +286,10 @@ class SenseNovaReferenceImageAdvanced(SenseNovaReferenceImage):
             node_id="SenseNovaReferenceImageAdvanced",
             display_name="SenseNova Reference Images (1-10)",
             category="conditioning/SenseNova",
-            description="Attach 1-10 source images for advanced multi-reference editing.",
+            description=(
+                "Attach 1-10 source images for advanced multi-reference editing. When editing a "
+                "SenseNova-generated image, choose a sampler seed different from its generation seed."
+            ),
             inputs=[
                 io.Conditioning.Input(id="positive"),
                 io.Conditioning.Input(id="negative"),

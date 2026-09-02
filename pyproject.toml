@@ -1,6 +1,6 @@
 [project]
 name = "sensenova-u15-t8"
-version = "1.4.0"
+version = "1.4.1"
 description = "Native ComfyUI nodes for SenseNova-U1.5 text-to-image generation and multi-reference image editing."
 license = { file = "LICENSE" }
 requires-python = ">=3.10"

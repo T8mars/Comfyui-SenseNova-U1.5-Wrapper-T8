@@ -30,7 +30,6 @@ class ModelStructureTests(unittest.TestCase):
         expected = {
             name: shape
             for name, (shape, _dtype) in _checkpoint_contract("final").items()
-            if name != "language_model.lm_head.weight"
         }
         self.assertEqual(set(actual), set(expected))
         for name, tensor in actual.items():

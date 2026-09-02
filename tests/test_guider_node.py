@@ -194,6 +194,10 @@ class EditGuiderNodeTests(unittest.TestCase):
                 "SenseNovaReferenceImageAdvanced": 2,
                 "SenseNovaStructuredEditPrompt": 1,
                 "SenseNovaEditGuider": 1,
+                "SenseNovaTextEncode": 1,
+                "SenseNovaThinkingPreview": 1,
+                "SenseNovaInterleave": 3,
+                "SenseNovaInterleavePreview": 1,
             },
         )
 

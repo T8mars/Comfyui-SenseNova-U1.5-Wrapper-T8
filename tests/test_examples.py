@@ -19,11 +19,13 @@ class ExampleWorkflowTests(unittest.TestCase):
             "edit_workflow.json",
             "gguf_edit_workflow.json",
             "gguf_t2i_workflow.json",
+            "interleave_workflow.json",
             "multi_reference_edit_workflow.json",
             "sft_edit_workflow.json",
             "sft_t2i_workflow.json",
             "t2i_8step_workflow.json",
             "t2i_workflow.json",
+            "thinking_t2i_workflow.json",
         ])
         for path in examples:
             workflow = json.loads(path.read_text(encoding="utf-8"))
@@ -42,9 +44,11 @@ class ExampleWorkflowTests(unittest.TestCase):
             "edit_workflow.json",
             "gguf_edit_workflow.json",
             "gguf_t2i_workflow.json",
+            "interleave_workflow.json",
             "multi_reference_edit_workflow.json",
             "sft_t2i_workflow.json",
             "sft_edit_workflow.json",
+            "thinking_t2i_workflow.json",
         ):
             workflow = self.load_example(name)
             nodes = {node["id"]: node for node in workflow["nodes"]}
@@ -79,6 +83,21 @@ class ExampleWorkflowTests(unittest.TestCase):
         sampler = next(node for node in workflow["nodes"] if node["type"] == "KSampler")
         self.assertEqual(loader["widgets_values"], ["SenseNova-U1.5-8B-MoT-BF16-T8.safetensors"])
         self.assertEqual(sampler["widgets_values"][2:], [50, 4, "euler", "normal", 1])
+
+    def test_thinking_and_interleave_examples_use_new_protocol_nodes(self):
+        thinking = self.load_example("thinking_t2i_workflow.json")
+        encoders = [node for node in thinking["nodes"] if node["type"] == "SenseNovaTextEncode"]
+        self.assertEqual(encoders[0]["widgets_values"][1:], ["image", True, 512])
+        self.assertEqual(encoders[1]["widgets_values"][1:], ["image", False, 64])
+        self.assertTrue(any(node["type"] == "SenseNovaThinkingPreview" for node in thinking["nodes"]))
+
+        interleave = self.load_example("interleave_workflow.json")
+        encoders = [node for node in interleave["nodes"] if node["type"] == "SenseNovaTextEncode"]
+        self.assertEqual([node["widgets_values"][1] for node in encoders], ["interleave", "interleave"])
+        generator = next(node for node in interleave["nodes"] if node["type"] == "SenseNovaInterleave")
+        preview = next(node for node in interleave["nodes"] if node["type"] == "SenseNovaInterleavePreview")
+        self.assertEqual(generator["widgets_values"][-2:], [1024, 4])
+        self.assertEqual(preview["widgets_values"], [False])
 
     def test_gguf_examples_use_verified_q3_loader_and_native_pipeline(self):
         for name in ("gguf_t2i_workflow.json", "gguf_edit_workflow.json"):

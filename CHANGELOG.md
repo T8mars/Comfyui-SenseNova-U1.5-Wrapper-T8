@@ -2,6 +2,15 @@
 
 本文件记录 ComfyUI 节点本身的版本变化。模型权重的下载和说明见 Hugging Face 模型页。
 
+## [1.5.0] - 2026-09-02
+
+- 将 ComfyUI core PR [#16032](https://github.com/Comfy-Org/ComfyUI/pull/16032) 的 SenseNova thinking 与交错文本/图像生成能力适配到本节点；无需修改本地 ComfyUI core。
+- 新增 `SenseNova 1.x Text Encode` 和 `SenseNova Thinking Preview`，支持普通图像模式、thinking 模式和 interleave 模式，可限制最大思考 token 数并在采样后查看实际思考文本。
+- 新增 `SenseNova 1.x Interleave`：在同一次会话中生成文本和多张图，生成图会重新编码进正/负 KV 前缀，供后续文本与图像继续生成。
+- 新增顺序化 `SenseNova Interleave Preview`，按生成顺序显示文本、可选 thinking 和图片，同时输出 Markdown。
+- 保留并加载官方 checkpoint 中的 `language_model.lm_head.weight`；Final、SFT 与五种 GGUF Loader 共用原有严格校验、动态卸载和采样期 KV cache 管道。
+- 新增 thinking 文生图与 interleave 故事工作流，以及思考闭合、双前缀、多图回填、输出顺序和前端节点协议测试。
+
 ## [1.4.1] - 2026-09-02
 
 - 根据上游确认的结论，补充“编辑 SenseNova 自生成图片时应更换 seed”的中英文说明，避免复用文生图 seed 引起分布偏移和画面崩坏。

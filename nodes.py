@@ -8,12 +8,22 @@ import torch
 import comfy.model_management
 import comfy.model_patcher
 import comfy.patcher_extension
+import comfy.sample
 import comfy.samplers
+import comfy.utils
 import folder_paths
+import latent_preview
 import node_helpers
-from comfy_api.latest import ComfyExtension, io
+from comfy_api.latest import ComfyExtension, io, ui
 
 from .sensenova_u15.loader import load_pixel_vae, load_sensenova_clip, load_sensenova_model
+from .sensenova_u15.interleave import (
+    SenseNovaInterleaveSession,
+    build_interleave_result,
+    interleave_result_to_markdown,
+    live_conditioning,
+    prefix_arguments,
+)
 from .sensenova_u15.lora import apply_eight_step_lora
 from .sensenova_u15.guidance import (
     CFG_NORM_MODES,
@@ -22,6 +32,9 @@ from .sensenova_u15.guidance import (
     rescale_denoised_guidance,
 )
 from .sensenova_u15.sampling import SenseNovaModelSampling
+
+
+InterleaveResultIO = io.Custom("SENSENOVA_INTERLEAVE_RESULT")
 
 
 GGUF_MODEL_DIR = Path(folder_paths.models_dir) / "gguf"
@@ -476,6 +489,337 @@ class SenseNovaEditGuider(io.ComfyNode):
         return io.NodeOutput(guider)
 
 
+def interleave_output_samples(result, latent_samples):
+    """Return generated interleave images as a ComfyUI latent batch."""
+
+    if not result.images:
+        return latent_samples
+    return torch.cat(result.images).to(
+        device=comfy.model_management.intermediate_device(),
+        dtype=comfy.model_management.intermediate_dtype(),
+    )
+
+
+def run_interleave(
+    model,
+    clip,
+    positive,
+    negative,
+    noise_seed,
+    cfg,
+    sampler,
+    sigmas,
+    latent,
+    max_text_tokens,
+    max_images=1,
+):
+    """Run one SenseNova interleave session using standard ComfyUI sampling."""
+
+    latent = latent.copy()
+    latent_samples = comfy.sample.fix_empty_latent_channels(
+        model,
+        latent["samples"],
+        latent.get("downscale_ratio_spacial"),
+        latent.get("downscale_ratio_temporal"),
+    )
+    if latent_samples.shape[0] != 1:
+        raise ValueError("SenseNova interleave requires a single latent image.")
+    latent["samples"] = latent_samples
+
+    positive_data = positive[0][1]
+    negative_data = negative[0][1]
+    if not positive_data.get("sensenova_interleave") or not negative_data.get(
+        "sensenova_interleave"
+    ):
+        raise ValueError(
+            "SenseNova interleave requires positive and negative conditioning "
+            "encoded with mode=interleave."
+        )
+
+    comfy.model_management.load_models_gpu([model])
+    device = model.load_device
+    transformer_options = model.model_options.get("transformer_options", {}).copy()
+    model.pre_run()
+    try:
+        diffusion_model = model.model.diffusion_model
+        session = SenseNovaInterleaveSession(
+            diffusion_model,
+            positive_prefix=prefix_arguments(
+                positive_data, device, diffusion_model.dtype, image_only=False
+            ),
+            negative_prefix=prefix_arguments(
+                negative_data, device, diffusion_model.dtype, image_only=True
+            ),
+            decode_tokens=lambda values: clip.tokenizer.sensenova_u15.tokenizer.decode(
+                values, skip_special_tokens=True
+            ),
+            transformer_options=transformer_options,
+        )
+        image_index = 0
+
+        def sample_image(positive_prefix, negative_prefix):
+            nonlocal image_index
+            noise = comfy.sample.prepare_noise(latent_samples, noise_seed, [image_index])
+            callback = latent_preview.prepare_callback(model, sigmas.shape[-1] - 1, {})
+            samples = comfy.sample.sample_custom(
+                model,
+                noise,
+                cfg,
+                sampler,
+                sigmas,
+                live_conditioning(positive_prefix),
+                live_conditioning(negative_prefix),
+                latent_samples,
+                noise_mask=latent.get("noise_mask"),
+                callback=callback,
+                disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED,
+                seed=noise_seed,
+            )
+            image_index += 1
+            comfy.model_management.load_models_gpu([model])
+            model.pre_run()
+            return samples.to(device=device, dtype=diffusion_model.dtype)
+
+        progress = comfy.utils.ProgressBar(max_text_tokens)
+        result = session.generate(
+            sample_image,
+            max_text_tokens=max_text_tokens,
+            max_images=max_images,
+            progress=progress.update_absolute,
+            interrupt=comfy.model_management.throw_exception_if_processing_interrupted,
+        )
+    finally:
+        model.cleanup()
+
+    latent.pop("downscale_ratio_spacial", None)
+    latent.pop("downscale_ratio_temporal", None)
+    latent["samples"] = interleave_output_samples(result, latent_samples)
+    return latent, result.text, build_interleave_result(result)
+
+
+class SenseNovaTextEncode(io.ComfyNode):
+    """Encode image-generation or interleave prompts with optional thinking."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SenseNovaTextEncode",
+            display_name="SenseNova 1.x Text Encode",
+            category="conditioning/SenseNova",
+            description="Encode a SenseNova prompt with optional image-generation reasoning or interleaved text/image output.",
+            inputs=[
+                io.Clip.Input(id="clip"),
+                io.String.Input(id="text", multiline=True, dynamic_prompts=True),
+                io.Combo.Input(
+                    id="mode",
+                    options=["image", "interleave"],
+                    default="image",
+                ),
+                io.Boolean.Input(id="thinking", default=False),
+                io.Int.Input(
+                    id="max_think_tokens",
+                    default=1024,
+                    min=1,
+                    max=8192,
+                    advanced=True,
+                ),
+            ],
+            outputs=[io.Conditioning.Output()],
+        )
+
+    @classmethod
+    def execute(cls, *, clip, text, thinking, max_think_tokens, mode="image"):
+        tokenize_options = {"thinking": thinking}
+        if mode == "interleave":
+            tokenize_options["mode"] = mode
+        tokens = clip.tokenize(text, **tokenize_options)
+        metadata = {
+            "sensenova_thinking": thinking,
+            "sensenova_max_think_tokens": max_think_tokens,
+            "sensenova_thinking_result": {
+                "enabled": thinking,
+                "token_ids": None,
+            },
+        }
+        if mode == "interleave":
+            metadata["sensenova_interleave"] = True
+        conditioning = clip.encode_from_tokens_scheduled(tokens, add_dict=metadata)
+        return io.NodeOutput(conditioning)
+
+
+class SenseNovaThinkingPreview(io.ComfyNode):
+    """Display the reasoning tokens produced by SenseNova image sampling."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SenseNovaThinkingPreview",
+            display_name="SenseNova Thinking Preview",
+            category="sampling/SenseNova",
+            description=(
+                "Decode the thinking tokens generated while sampling. Connect the "
+                "samples output from the KSampler that uses this conditioning."
+            ),
+            is_output_node=True,
+            inputs=[
+                io.Clip.Input(id="clip"),
+                io.Conditioning.Input(id="conditioning"),
+                io.Latent.Input(
+                    id="samples",
+                    tooltip="Ensures this preview runs after the connected KSampler.",
+                ),
+            ],
+            outputs=[io.String.Output(display_name="thinking")],
+        )
+
+    @classmethod
+    def execute(cls, *, clip, conditioning, samples):
+        sampled_latent = samples.get("samples") if isinstance(samples, dict) else None
+        thinking_result = None
+        for conditioning_entry in conditioning:
+            metadata = conditioning_entry[1]
+            thinking_result = metadata.get("sensenova_thinking_result")
+            if thinking_result is not None:
+                break
+
+        if thinking_result is None or not thinking_result.get("enabled", False):
+            text = "SenseNova thinking is disabled for this conditioning."
+        elif sampled_latent is None or thinking_result.get("token_ids") is None:
+            text = (
+                "SenseNova thinking has not run. Connect samples from the KSampler "
+                "that uses this conditioning."
+            )
+        else:
+            text = clip.decode(thinking_result["token_ids"], skip_special_tokens=True).strip()
+            if not text:
+                text = "SenseNova thinking completed without visible text."
+        return io.NodeOutput(text, ui=ui.PreviewText(text))
+
+
+class SenseNovaInterleave(io.ComfyNode):
+    """Generate interleaved SenseNova text and image output."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SenseNovaInterleave",
+            display_name="SenseNova 1.x Interleave",
+            category="sampling/custom_sampling/SenseNova",
+            description="Autoregressively generate ordered text and images, feeding each generated image back into the next turn.",
+            inputs=[
+                io.Model.Input(id="model"),
+                io.Clip.Input(id="clip"),
+                io.Conditioning.Input(id="positive"),
+                io.Conditioning.Input(id="negative"),
+                io.Int.Input(
+                    id="noise_seed",
+                    default=0,
+                    min=0,
+                    max=0xFFFFFFFFFFFFFFFF,
+                    control_after_generate=True,
+                ),
+                io.Float.Input(id="cfg", default=4.0, min=0.0, max=100.0, step=0.1, round=0.01),
+                io.Sampler.Input(id="sampler"),
+                io.Sigmas.Input(id="sigmas"),
+                io.Latent.Input(id="latent_image"),
+                io.Int.Input(id="max_text_tokens", default=1024, min=1, max=8192, advanced=True),
+                io.Int.Input(id="max_images", default=4, min=1, max=10, advanced=True),
+            ],
+            outputs=[
+                io.Latent.Output(display_name="samples"),
+                io.String.Output(display_name="text"),
+                InterleaveResultIO.Output(display_name="interleave_result"),
+            ],
+        )
+
+    @classmethod
+    def execute(
+        cls,
+        *,
+        model,
+        clip,
+        positive,
+        negative,
+        noise_seed,
+        cfg,
+        sampler,
+        sigmas,
+        latent_image,
+        max_text_tokens,
+        max_images,
+    ):
+        return io.NodeOutput(
+            *run_interleave(
+                model,
+                clip,
+                positive,
+                negative,
+                noise_seed,
+                cfg,
+                sampler,
+                sigmas,
+                latent_image,
+                max_text_tokens,
+                max_images,
+            )
+        )
+
+
+def _save_preview_images(images):
+    if images is None or images.shape[0] == 0:
+        return []
+    return [dict(value) for value in ui.PreviewImage(images).as_dict()["images"]]
+
+
+class SenseNovaInterleavePreview(io.ComfyNode):
+    """Display interleaved text, thinking, and images in generation order."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SenseNovaInterleavePreview",
+            display_name="SenseNova Interleave Preview",
+            category="sampling/custom_sampling/SenseNova",
+            is_output_node=True,
+            inputs=[
+                InterleaveResultIO.Input(id="interleave_result"),
+                io.Boolean.Input(id="include_think", default=False),
+                io.Image.Input(id="images", optional=True),
+            ],
+            outputs=[io.String.Output(display_name="markdown")],
+        )
+
+    @classmethod
+    def execute(cls, *, interleave_result, include_think, images=None):
+        markdown = interleave_result_to_markdown(interleave_result, include_think=include_think)
+        saved_images = _save_preview_images(images)
+        parts_payload = []
+        for part in interleave_result.get("parts", []):
+            part_type = part.get("type")
+            if part_type == "think" and not include_think:
+                continue
+            if part_type in ("text", "think"):
+                text = str(part.get("text", "")).strip()
+                if text:
+                    parts_payload.append({"type": part_type, "text": text})
+            elif part_type == "image":
+                index = int(part.get("index", 0))
+                image = saved_images[index] if index < len(saved_images) else None
+                if image is None:
+                    parts_payload.append({"type": "image", "index": index, "missing": True})
+                else:
+                    parts_payload.append(
+                        {
+                            "type": "image",
+                            "index": index,
+                            "filename": image.get("filename", ""),
+                            "subfolder": image.get("subfolder", ""),
+                            "image_type": image.get("type", "temp"),
+                        }
+                    )
+        return io.NodeOutput(markdown, ui={"text": [markdown], "parts": parts_payload})
+
+
 class SenseNovaExtension(ComfyExtension):
     @override
     async def get_node_list(self):
@@ -489,6 +833,10 @@ class SenseNovaExtension(ComfyExtension):
             SenseNovaReferenceImageAdvanced,
             SenseNovaStructuredEditPrompt,
             SenseNovaEditGuider,
+            SenseNovaTextEncode,
+            SenseNovaThinkingPreview,
+            SenseNovaInterleave,
+            SenseNovaInterleavePreview,
         ]
 
 

@@ -2,6 +2,11 @@
 
 本文件记录 ComfyUI 节点本身的版本变化。模型权重的下载和说明见 Hugging Face 模型页。
 
+## [1.5.2] - 2026-09-02
+
+- 同步 ComfyUI core PR [#16032](https://github.com/Comfy-Org/ComfyUI/pull/16032) 的交错图片定位修复：Thinking Interleave 最终答案里的 `<image1>`、`<image2>` 等引用现在会解析成对应图片，并在隐藏思考过程时将图片移动到最终答案指定位置。
+- 显示思考过程时保留图片原始生成位置，同时移除最终答案中的重复编号引用；无法解析及非正数引用会被安全移除。
+
 ## [1.5.1] - 2026-09-02
 
 - 修复 ComfyUI 0.33 / frontend 1.49 中 `SenseNova Thinking Preview` 后端已返回思考文本、但画布节点不显示的问题；新增自带 DOM 预览并兼容字符串和数组两种 `text` 事件格式。

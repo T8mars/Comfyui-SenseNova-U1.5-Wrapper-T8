@@ -9,7 +9,13 @@ if str(COMFY_ROOT) not in sys.path:
 
 from transformers import Qwen2Tokenizer
 
-from sensenova_u15.text_encoder import SenseNovaTokenizer, build_generation_prompt, build_unconditional_prompt
+from sensenova_u15.text_encoder import (
+    SenseNovaTokenizer,
+    build_generation_prompt,
+    build_interleave_prompt,
+    build_interleave_unconditional_prompt,
+    build_unconditional_prompt,
+)
 
 
 class TextEncoderTests(unittest.TestCase):
@@ -31,6 +37,30 @@ class TextEncoderTests(unittest.TestCase):
         expected = reference(build_unconditional_prompt(), add_special_tokens=True)["input_ids"]
         actual = SenseNovaTokenizer().tokenize_with_weights("")["sensenova_u15"][0]
         self.assertEqual([int(value[0]) for value in actual], expected)
+
+    def test_generation_prompt_selects_thinking_protocol(self):
+        no_thinking = build_generation_prompt("test")
+        thinking = build_generation_prompt("test", thinking=True)
+
+        self.assertTrue(no_thinking.endswith("<think>\n\n</think>\n\n<img>"))
+        self.assertTrue(thinking.endswith("<think>\n"))
+        self.assertEqual(thinking.rsplit("<|im_start|>assistant\n", 1)[-1], "<think>\n")
+
+    def test_interleave_prompt_leaves_image_event_to_the_model(self):
+        no_thinking = build_interleave_prompt("test")
+        thinking = build_interleave_prompt("test", thinking=True)
+
+        self.assertTrue(no_thinking.endswith("<think>\n\n</think>\n\n"))
+        self.assertFalse(no_thinking.endswith("<img>"))
+        self.assertTrue(thinking.endswith("<|im_start|>assistant\n"))
+        self.assertEqual(
+            build_interleave_unconditional_prompt(),
+            "<|im_start|>user\n<|im_end|>\n<|im_start|>assistant\n",
+        )
+
+    def test_tokenizer_selects_interleave_protocol(self):
+        values = SenseNovaTokenizer().tokenize_with_weights("test", mode="interleave")["sensenova_u15"][0]
+        self.assertNotEqual(int(values[-1][0]), 151670)
 
 
 if __name__ == "__main__":

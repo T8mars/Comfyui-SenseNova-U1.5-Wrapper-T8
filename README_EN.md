@@ -11,6 +11,8 @@ Native ComfyUI nodes for SenseNova U1.5. The model, sampler, scheduler, VRAM off
 Supported features:
 
 - Text-to-image generation
+- Thinking image generation, with model reasoning before diffusion sampling
+- Interleaved text/image generation with generated-image feedback into later turns
 - Single-image editing
 - Multi-reference editing with 1 to 10 images
 - Generate 1 to 16 different results from the same prompt and references
@@ -101,6 +103,8 @@ The official 8-step LoRA must be used with Final. Do not apply it to SFT or Prev
 These are normal ComfyUI canvas workflows. Download a JSON file and drag it onto the ComfyUI canvas. There are no API-format workflows in this repository. For editing workflows, select your own image in each `Load Image` node after importing.
 
 - [Text-to-image](examples/t2i_workflow.json)
+- [Thinking text-to-image](examples/thinking_t2i_workflow.json)
+- [Interleaved text/image generation](examples/interleave_workflow.json)
 - [GGUF text-to-image](examples/gguf_t2i_workflow.json)
 - [GGUF image editing](examples/gguf_edit_workflow.json)
 - [GGUF live-validation record](docs/gguf-validation.md)
@@ -121,6 +125,8 @@ These two workflows target ComfyUI builds that include native SenseNova U1.5 cor
 The core workflows use ComfyUI's built-in `CheckpointLoaderSimple`, so place the base checkpoint in `ComfyUI/models/checkpoints/`. The 8-step LoRA can use the built-in `LoraLoaderModelOnly`; keep the LoRA file in `ComfyUI/models/loras/`.
 The merged core implementation reuses `EmptyHiDreamO1LatentImage` and `HiDreamO1ReferenceImages`, so use a ComfyUI build that includes [PR #15922](https://github.com/Comfy-Org/ComfyUI/pull/15922).
 
+This repository now adapts the thinking and interleave implementation from [ComfyUI core PR #16032](https://github.com/Comfy-Org/ComfyUI/pull/16032) to the MODEL / CLIP / VAE outputs of its own loaders. PR #16032 is still open, so these two workflows do not require patching or switching your local ComfyUI core. Once the core PR lands, both paths use the same prompt protocol and generation logic.
+
 The GGUF workflows use this repository's `SenseNova U1.5 GGUF Loader (Final)`. It dequantizes weights on demand while keeping MODEL, CLIP, VAE, sampling, scheduling, LoRA, and VRAM offloading on ComfyUI's native interfaces. It does not require the separate ComfyUI-GGUF custom node. No Q4 file is currently published in the linked model repository, so Q4 is not listed as a verified download.
 
 Start with these settings:
@@ -134,6 +140,12 @@ sampler: euler
 scheduler: normal
 denoise: 1
 ```
+
+### Thinking and interleaved generation
+
+For thinking image generation, replace `CLIP Text Encode` with `SenseNova 1.x Text Encode`, select `mode=image`, and enable `thinking`. Start with `max_think_tokens=512`; keep thinking disabled on the negative prompt. Connect the same positive conditioning and the KSampler samples to `SenseNova Thinking Preview` to inspect the reasoning text after sampling completes. The model performs autoregressive reasoning before diffusion sampling, so the first image takes additional time and KV memory compared with ordinary text-to-image generation.
+
+For interleaved output, encode both positive and negative prompts with `mode=interleave`, then connect them to `SenseNova 1.x Interleave`. The node uses standard `KSamplerSelect`, `BasicScheduler`, and a pixel latent. Whenever the model emits an image event, the node samples that image, appends it to both live KV prefixes, and continues generating later text or images. `max_images` caps the images in one session. Decode the latent batch with `VAE Decode` and connect it, together with the structured result, to `SenseNova Interleave Preview` to preserve the original output order.
 
 `Empty SenseNova Pixel Latent` also exposes the official suggested resolution presets. Select `Custom` to keep using the width and height fields:
 
@@ -338,7 +350,7 @@ Local and CI validation coverage:
 
 - Only NVIDIA CUDA with BF16 has been fully validated.
 - Models are not downloaded automatically at runtime.
-- Bbox/marker controls and think mode are not exposed yet.
+- Bbox/marker controls are not exposed yet.
 - Complex subject replacement, multi-region edits, and heavily constrained edits can drift.
 - Small diagonal or vertical text can degrade during editing; upstream has confirmed this as a [model limitation targeted for improvement](https://github.com/OpenSenseNova/SenseNova-U1/issues/275).
 - Reusing the same seed when editing a SenseNova-generated image can cause a distribution shift and a collapsed result. Follow the [upstream-confirmed workaround](https://github.com/OpenSenseNova/SenseNova-U1/issues/278#issuecomment-5503345718) and change the seed; if the problem remains, try the nearest official resolution preset.

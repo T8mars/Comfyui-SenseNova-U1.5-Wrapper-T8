@@ -63,21 +63,24 @@ def _image_tokens(token_height, token_width):
     return [IMAGE_START_ID] + [IMAGE_CONTEXT_ID] * (token_height * token_width) + [IMAGE_END_ID]
 
 
-def conditioned_input_length(input_length, reference_grids, image_only=False):
+def conditioned_input_length(
+    input_length, reference_grids, image_only=False, append_image_start=True
+):
     image_token_count = sum(height * width for height, width in reference_grids)
     if image_only:
-        return image_token_count + 9 + 2 * len(reference_grids)
+        return image_token_count + 9 + 2 * len(reference_grids) - int(not append_image_start)
     label_count = sum(len(IMAGE_LABEL_IDS[index]) for index in range(len(reference_grids))) if len(reference_grids) > 1 else 0
     return input_length + image_token_count + 3 * len(reference_grids) + label_count
 
 
-def condition_input_ids(input_ids, reference_grids, image_only=False):
+def condition_input_ids(input_ids, reference_grids, image_only=False, append_image_start=True):
     image_blocks = [_image_tokens(height, width) for height, width in reference_grids]
     if image_only:
         values = (
             [IM_START_ID, USER_ID, NEWLINE_ID]
             + [token for block in image_blocks for token in block]
-            + [IM_END_ID, NEWLINE_ID, IM_START_ID, ASSISTANT_ID, NEWLINE_ID, IMAGE_START_ID]
+            + [IM_END_ID, NEWLINE_ID, IM_START_ID, ASSISTANT_ID, NEWLINE_ID]
+            + ([IMAGE_START_ID] if append_image_start else [])
         )
         return torch.tensor([values], dtype=torch.long, device=input_ids.device)
 
@@ -115,11 +118,11 @@ def thw_indexes(input_ids, reference_grids):
     return torch.stack((time_indexes, height_indexes, width_indexes)).unsqueeze(0)
 
 
-def block_causal_mask(time_indexes):
+def block_causal_mask(time_indexes, dtype=torch.float32):
     values = time_indexes[0, 0]
     length = values.shape[0]
     same_block = values[:, None] == values[None, :]
     causal = torch.arange(length, device=values.device)[None, :] <= torch.arange(length, device=values.device)[:, None]
     allowed = same_block | causal
-    mask = torch.zeros((1, 1, length, length), dtype=torch.float32, device=values.device)
+    mask = torch.zeros((1, 1, length, length), dtype=dtype, device=values.device)
     return mask.masked_fill(~allowed[None, None], float("-inf"))

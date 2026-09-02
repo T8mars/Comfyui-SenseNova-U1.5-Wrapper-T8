@@ -9,6 +9,8 @@
 这是 SenseNova-U1.5 的 ComfyUI 原生节点。模型、采样器、调度器、显存卸载和工作流都走 ComfyUI 管道，支持：
 
 - 文生图
+- thinking 文生图（模型先进行隐藏推理，再生成图片）
+- 文本/图片交错生成；生成图片会反馈给后续生成过程
 - 单图编辑
 - 1～10 张参考图编辑
 - 同一提示词/参考图一次生成 1～16 个不同结果
@@ -98,6 +100,8 @@ Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图�
 下面都是 ComfyUI 画布工作流，下载 JSON 后可以直接拖进 ComfyUI。没有 API 工作流。编辑工作流打开后，先在 `Load Image` 中选择自己的图片。
 
 - [文生图工作流](examples/t2i_workflow.json)
+- [thinking 文生图工作流](examples/thinking_t2i_workflow.json)
+- [文本/图片交错生成工作流](examples/interleave_workflow.json)
 - [GGUF 文生图工作流](examples/gguf_t2i_workflow.json)
 - [GGUF 图像编辑工作流](examples/gguf_edit_workflow.json)
 - [GGUF 实机验证记录](docs/gguf-validation.md)
@@ -118,6 +122,8 @@ Final 和 SFT 都是 SenseNova U1.5，本节点都支持 50 步文生图和图�
 core 工作流使用 ComfyUI 自带的 `CheckpointLoaderSimple`，因此底模要放到 `ComfyUI/models/checkpoints/`。8-step LoRA 可直接使用自带的 `LoraLoaderModelOnly`，LoRA 文件仍放在 `ComfyUI/models/loras/`。
 合并后的 core 实现复用 `EmptyHiDreamO1LatentImage` 和 `HiDreamO1ReferenceImages`，因此请使用包含 [ComfyUI PR #15922](https://github.com/Comfy-Org/ComfyUI/pull/15922) 的版本。
 
+本仓库的 thinking 和 interleave 节点已适配 [ComfyUI core PR #16032](https://github.com/Comfy-Org/ComfyUI/pull/16032) 的实现，并直接使用本仓库 Loader 输出的 MODEL / CLIP / VAE。当前 #16032 尚未合并，因此使用这里的两个新工作流时不需要修改或切换本地 ComfyUI core；将来 core 合并后，两种实现的提示词协议和生成逻辑保持一致。
+
 GGUF 工作流使用本仓库的 `SenseNova U1.5 GGUF Loader (Final)`。Loader 会按需解量化权重，但 MODEL、CLIP、VAE、采样器、调度器、LoRA 和显存卸载仍使用 ComfyUI 原生接口；不要求另外安装 ComfyUI-GGUF 自定义节点。Q4 文件目前没有在上述模型仓库实际发布，因此不会显示为受验证的下载选项。
 
 推荐先保持这些参数：
@@ -131,6 +137,12 @@ sampler: euler
 scheduler: normal
 denoise: 1
 ```
+
+### Thinking 与交错生成
+
+普通文生图要启用 thinking，请用 `SenseNova 1.x Text Encode` 代替 `CLIP Text Encode`，选择 `mode=image` 并开启 `thinking`。`max_think_tokens` 是推理上限，建议先用 512；负面提示保持 `thinking=false`。把同一份正面 conditioning 和 KSampler 的 samples 接到 `SenseNova Thinking Preview`，可以在采样完成后查看模型实际生成的思考文本。由于会先做自回归推理，首张图开始采样前会比普通文生图多花一些时间和 KV 显存。
+
+交错生成时，正面和负面提示都选择 `mode=interleave`，再连接到 `SenseNova 1.x Interleave`。节点使用标准 `KSamplerSelect`、`BasicScheduler` 和 pixel latent；每次模型产生图片事件，节点会采样图片并重新写入正/负 KV 前缀，然后继续生成后续文本或图片。`max_images` 限制单次最多生成的图片数；输出经 `VAE Decode` 后连到 `SenseNova Interleave Preview`，即可按原始顺序查看。
 
 `Empty SenseNova Pixel Latent` 还提供官方建议的分辨率预设；选择 `Custom` 时继续使用节点上的 width 和 height：
 
@@ -324,7 +336,7 @@ SenseNova 的文字和参考图 prefix 在每一步都相同。`SenseNova Sampli
 
 - 只验证了 NVIDIA CUDA + BF16
 - 不支持运行时自动下载模型
-- bbox/marker 和 think mode 暂未开放
+- bbox/marker 控制暂未开放
 - 复杂主体替换、多区域或多约束编辑可能出现内容漂移
 - 斜排、竖排的小字在编辑中可能损坏，这是上游已确认会继续改进的[模型限制](https://github.com/OpenSenseNova/SenseNova-U1/issues/275)
 - 用 SenseNova 文生图结果继续编辑时，复用相同 seed 可能因分布偏移导致画面崩坏；请按[上游确认的处理办法](https://github.com/OpenSenseNova/SenseNova-U1/issues/278#issuecomment-5503345718)更换 seed，仍异常时再尝试最接近的官方分辨率预设
